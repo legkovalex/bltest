@@ -1,0 +1,56 @@
+version: '3' #Пробовал вторую, проблема с seeds и чем-то ещё
+
+services:
+#### Мастер
+  cassandra0:
+    image: 'cassandra:latest'
+    container_name: cassandra0
+    environment:
+#      - DATACENTER=DC1 #Отказался от этой идеи, так как нет временилезть в глубь.
+#      - CASSANDRA_START_RPC=true #RPC. В рамки задания не входит. Где нашёл не помню.
+      - CASSANDRA_SEEDS=cassandra0 # Как я понял, указание аналога мастера. Или как он в касандре называется?
+      - CASSANDRA_CLUSTER_NAME=alegkov_cluster #Задаём имя кластера.
+#    labels:
+#      kompose.service.type: nodeport
+    ports: #Порты https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureFireWall.html 
+      - '7000:7000'
+      - '7001:7001'
+      - '9042:9042'
+      - '9160:9160'
+#### JMX (7199) не стал делать
+    volumes: #Монтируем локальные каталоги в контейнер.
+      - ./cassandra:/etc/cassandra
+      - ./cas0data:/var/lib/cassandra
+    ulimits: #Задаём пользовательские лимиты https://docs.datastax.com/en/dse/5.1/dse-admin/datastax_enterprise/config/configRecommendedSettings.html#configRecommendedSettings__user-resource-limits
+      memlock: -1
+      nproc: 32768
+      nofile: 100000
+
+#### Практически тоже самое для второй ноды
+  cassandra1:
+    image: 'cassandra:latest'
+    container_name: cassandra1
+    ports:
+      - 9142:9042 #Вообще это SSL, но публикую как обычный клиентский
+    links:
+      - cassandra0:seed #Линк на мастера
+    environment:
+#      - DATACENTER=DC2
+      - CASSANDRA_SEEDS=cassandra0
+      - CASSANDRA_CLUSTER_NAME=alegkov_cluster
+    volumes:
+#      - cassandra:/etc/cassandra
+      - ./cas1data:/var/lib/cassandra
+    ulimits:
+      memlock: -1
+      nproc: 32768
+      nofile: 100000
+
+
+
+#"Разделы" для контейнеров
+volumes:
+  cassandra: #Конфигурационные файлы для мастера
+#    driver: local
+  cas0data: #Данные для мастера
+  cas1data: #Данные для... не мастера
